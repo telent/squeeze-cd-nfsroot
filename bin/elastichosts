@@ -1,0 +1,77 @@
+#!/bin/bash
+
+set +o posix
+
+usage() {
+  cat >&2 <<EOF
+Usage: $0 [ -c | -f FILENAME ] CMD [ARG]...
+Options:
+  -c            read input data for API call from stdin
+  -f FILENAME   read input data for API call from FILENAME
+  -j            input and output are in JSON format
+  -v            show full headers sent and received during API call
+EOF
+  exit 1
+}
+
+
+if ! type -t curl >/dev/null; then
+  echo "This tool requires curl, available from http://curl.haxx.se/" >&2
+  exit 1
+elif [ ! -n "$EHURI" ]; then
+  echo "Please set EHURI=<API endpoint URI>" >&2
+  exit 1
+elif [ ! -n "$EHAUTH" ]; then
+  echo "Please set EHAUTH=<user uuid>:<secret API key>" >&2
+  exit 1
+fi
+
+DATA=""
+TYPE=""
+VERBOSE=""
+
+while getopts cf:jv OPTION; do
+  case "$OPTION" in
+    c)
+      DATA="-"
+      ;;
+    f)
+      if [ -e "$OPTARG" ]; then
+        case "$OPTARG" in
+          /*)
+            DATA="$OPTARG"
+            ;;
+          *)
+            DATA="$PWD/$OPTARG"
+            ;;
+        esac
+      else
+        echo "$OPTARG not found" >&2
+        exit 1
+      fi
+      ;;
+    j)
+      TYPE="application/json"
+      ;;
+    v)
+      VERBOSE=-v
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+[ $# -gt 0 ] || usage
+
+EHURI="$EHURI`tr \  / <<< "$*"`"
+EHAUTH="user = \"$EHAUTH\""
+
+if [ -z "$DATA" ]; then
+  curl --data-binary '' -K <(echo "$EHAUTH") -s $VERBOSE \
+       ${TYPE:+-H "Accept: $TYPE"} "$EHURI"
+else
+  cat "$DATA" | curl --data-binary @- -K <(echo "$EHAUTH") -s $VERBOSE \
+                     -H "Content-Type: ${TYPE:-application/octet-stream}" \
+                     ${TYPE:+-H "Accept: $TYPE"} -H 'Expect:' "$EHURI"
+fi

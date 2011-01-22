@@ -1,0 +1,10 @@
+# There are no entries here for /sys and /proc because they are already 
+# mounted by the time this file is processed.  Attempting to mount them 
+# again causes mount to fail silently
+
+/dev/nfs	/		rootfs	defaults	0	0
+master:/usr	/usr		nfs	ro		0	0
+master:/home	/home		nfs	ro		0	0
+tmpfs		/tmp		tmpfs	defaults	0	0
+tmpfs		/var		tmpfs	defaults	0	0
+LABEL=Scratch 	/scratch	ext4	noauto		0	0
